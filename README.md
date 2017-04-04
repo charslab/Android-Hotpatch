@@ -7,7 +7,7 @@ Update or fix an android app on the fly, without having to publish a new APK.
 
 ## Usage: 
 
-1. Make a .jar library with your app's classes and methods that you want to be updatable (see #compiling a library)
+1. Make a .jar library with your app's classes and methods that you want to be updatable (see [compiling your application as a library](https://github.com/charslab/Android-Hotpatch/blob/master/README.md#compiling-an-application-as-a-library-android-studio--eclipse)
 2. Grab [Hotpatch.java](https://github.com/charslab/Android-Hotpatch/blob/master/app/src/main/java/com/chars/android_hotpatch/Hotpatch.java) and add it to your project
 3. Load the .jar library you built earlier 
 
