@@ -16,6 +16,7 @@ You might need to do a small refactor of your app's code, but **the advantages a
 - Quickly fix & deploy a patch for a method
 - Add methods to classes
 - Hotpatch does not need the app to restart
+- Updating an app using Hotpatch **does not require root!**
 
 
 ## Quick usage demo:
@@ -78,7 +79,10 @@ Push the updated .jar to the same path as the previous. In your Android app, you
         
 and you'll have your updated library loaded into the app. Now, whenever you execute *getVersionString()* you will get *"libversion 2.0"*
 
-## Compiling an application as a library:
+## Compiling an application as a library (Android Studio / Eclipse):
 
-
+1. Start a new android project
+2. Add the classes that you want to be updatable
+3. Build an APK
+4. Rename the .apk file to .jar
 
