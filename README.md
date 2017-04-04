@@ -1,6 +1,6 @@
 # Android-Hotpatch
-[![Github All Releases](https://img.shields.io/github/downloads/charslab/Android-Hotpatch/total.svg)]()
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg)]()
+[![Github All Releases](https://img.shields.io/github/downloads/charslab/Android-Hotpatch/total.svg)](https://github.com/charslab/Android-Hotpatch/releases)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/charslab/Android-Hotpatch/blob/master/LICENSE)
 
 Autopdate an android app on the fly
 
