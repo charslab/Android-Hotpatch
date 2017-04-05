@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -38,19 +39,23 @@ import dalvik.system.DexClassLoader;
  */
 
 public class Hotpatch {
-    Context                         context;
-    String                          jarpath;
-    DexClassLoader                  dexClassLoader;
-    HashMap<String, Class<Object> > classLoaded;
-    HashMap<String, Object >        classInstance;
-    HashMap<String, Method>         method;
+    public static final String TAG = "AndroidHotpatch";
+
+    private Context                         context;
+    private String                          jarpath;
+    private DexClassLoader                  dexClassLoader;
+    private HashMap<String, Class<Object> > classLoaded;
+    private HashMap<String, Object>         classInstance;
+    private HashMap<String, Field>          fields;
+    private HashMap<String, Method>         method;
 
     public void Hotpatch() {
         jarpath = null;
         dexClassLoader = null;
-        classLoaded = new HashMap<>();
-        classInstance = new HashMap<>();
-        method = new HashMap<>();
+        classLoaded = null;
+        classInstance = null;
+        method = null;
+        fields = null;
 
     }
 
@@ -83,31 +88,67 @@ public class Hotpatch {
             classLoaded = new HashMap<>();
 
         if (classLoaded.containsKey(className)) {
-            Log.d("AndroidHotpatch", "Class " + className + " is already loaded");
+            Log.d(TAG, "Class " + className + " is already loaded");
             return;
         }
 
         Class<Object> tmpClass = (Class<Object>)dexClassLoader.loadClass(className);
         classLoaded.put(className, tmpClass);
 
-        Object tmpClassInstance = tmpClass.newInstance();
         if(classInstance == null)
             classInstance = new HashMap<>();
 
+        Object tmpClassInstance = tmpClass.newInstance();
         classInstance.put(className, tmpClassInstance);
+    }
+
+    public void loadClasses() {
+        /* TODO */
+    }
+
+    public void loadFields(String className) {
+        Field fields[] = classLoaded.get(className).getFields();
+
+        if (this.fields == null)
+            this.fields = new HashMap<>();
+
+        for (Field field : fields) {
+            Log.d(TAG, "Field " + field.getName() + ": " + field.toGenericString());
+            this.fields.put(className + ":" + field.getName(), field);
+        }
+
     }
 
     public void loadMethods(String className, String methods[]) throws NoSuchMethodException {
         if (!classLoaded.containsKey(className))
             throw new IllegalArgumentException("Class " + className + " is not loaded");
 
-        if(this.method == null)
+        if (this.method == null)
             this.method = new HashMap<>();
 
         for (String methodName: methods) {
+            Log.d(TAG, "Loading method " + className + "." + methodName);
             Method tmpMethod = classLoaded.get(className).getMethod(methodName);
 
             method.put(className + ":" + methodName, tmpMethod);
+        }
+    }
+
+    public void loadMethods(String className) {
+        /* FIX:  java.lang.NoSuchMethodException: equals [] */
+
+        if (!classLoaded.containsKey(className))
+            throw new IllegalArgumentException("Class " + className + " is not loaded");
+
+        if (this.method == null)
+            this.method = new HashMap<>();
+
+        Method methods[] = classLoaded.get(className).getMethods();
+
+        for (Method method : methods) {
+            String name = method.getName();
+
+            this.method.put(className + ":" + name, method);
         }
     }
 
@@ -141,6 +182,19 @@ public class Hotpatch {
 
             this.loadClass(curr_class);
             this.loadMethods(curr_class, method_array);
+        }
+
+    }
+
+    public void autoload() {
+        if (this.classLoaded == null)
+            throw new RuntimeException("You must load classes first!");
+
+        Set<String> classNames = this.classLoaded.keySet();
+
+        for (String className : classNames) {
+            this.loadMethods(className);
+            this.loadFields(className);
         }
 
     }
