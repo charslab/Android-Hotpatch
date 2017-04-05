@@ -86,3 +86,13 @@ and you'll have your updated library loaded into the app. Now, whenever you exec
 3. Build an APK
 4. Rename the .apk file to .jar
 
+
+## Changelog
+
+- v1.0:
+     - Support for methods
+     - Implemented Hotpatch.loadLibrary()
+     - Implemented Hotpatch.loadClass()
+     - Implemented Hotpatch.loadMethods()
+     - Implemented Hotpatch.reload()
+     - Implemented Hotpatch.call()
