@@ -110,6 +110,16 @@ public class Hotpatch {
 
     }
 
+    public void loadClasses(String classNames[]) throws IOException,
+                                                        ClassNotFoundException,
+                                                        IllegalAccessException,
+                                                        InstantiationException {
+        for (String className : classNames) {
+            this.loadClass(className);
+        }
+
+    }
+
     public void loadClasses() throws IOException,
                                      ClassNotFoundException,
                                      IllegalAccessException,
