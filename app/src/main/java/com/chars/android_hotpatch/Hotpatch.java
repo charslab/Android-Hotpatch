@@ -4,13 +4,17 @@ import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Set;
 
 import dalvik.system.DexClassLoader;
+import dalvik.system.DexFile;
 
 /**
  Created by chars on 04/04/17.
@@ -76,14 +80,14 @@ public class Hotpatch {
         File optimizedLibrarypath = context.getDir("dex", 0);
 
         dexClassLoader = new DexClassLoader(jarpath, optimizedLibrarypath.getAbsolutePath(),
-                                            null, context.getClassLoader());
+                null, context.getClassLoader());
 
     }
 
     @SuppressWarnings("unchecked")
     public void loadClass(String className) throws ClassNotFoundException,
-                                                   IllegalAccessException,
-                                                   InstantiationException {
+            IllegalAccessException,
+            InstantiationException {
         if (classLoaded == null)
             classLoaded = new HashMap<>();
 
@@ -91,6 +95,8 @@ public class Hotpatch {
             Log.d(TAG, "Class " + className + " is already loaded");
             return;
         }
+
+        Log.d(TAG, "Loading class " + className);
 
         Class<Object> tmpClass = (Class<Object>)dexClassLoader.loadClass(className);
         classLoaded.put(className, tmpClass);
@@ -100,10 +106,31 @@ public class Hotpatch {
 
         Object tmpClassInstance = tmpClass.newInstance();
         classInstance.put(className, tmpClassInstance);
+
+
     }
 
-    public void loadClasses() {
-        /* TODO */
+    public void loadClasses() throws IOException,
+                                     ClassNotFoundException,
+                                     IllegalAccessException,
+                                     InstantiationException {
+        DexFile dexFile = DexFile.loadDex(this.jarpath, File.createTempFile("opt", "dex", this.context.getCacheDir()).getPath(),
+                0);
+
+
+        String className = "";
+        for(Enumeration<String> classNames =  dexFile.entries(); classNames.hasMoreElements();
+            className = classNames.nextElement()) {
+
+            if(!className.isEmpty()) {
+
+                //Remove partial classes <class>$1..
+                if(className.contains("$"))
+                    className = className.substring(0, className.indexOf("$"));
+
+                this.loadClass(className);
+            }
+        }
     }
 
     public void loadFields(String className) {
@@ -119,7 +146,7 @@ public class Hotpatch {
 
     }
 
-    public void loadMethods(String className, String methods[]) throws NoSuchMethodException {
+    public void loadMethods(String className, String methods[], Class<?>... parameterTypes) throws NoSuchMethodException {
         if (!classLoaded.containsKey(className))
             throw new IllegalArgumentException("Class " + className + " is not loaded");
 
@@ -128,14 +155,14 @@ public class Hotpatch {
 
         for (String methodName: methods) {
             Log.d(TAG, "Loading method " + className + "." + methodName);
-            Method tmpMethod = classLoaded.get(className).getMethod(methodName);
+            Method tmpMethod = classLoaded.get(className).getMethod(methodName, parameterTypes);
 
             method.put(className + ":" + methodName, tmpMethod);
         }
     }
 
     public void loadMethods(String className) {
-        /* FIX:  java.lang.NoSuchMethodException: equals [] */
+        /* TOOD: fix java.lang.NoSuchMethodException: equals [] */
 
         if (!classLoaded.containsKey(className))
             throw new IllegalArgumentException("Class " + className + " is not loaded");
@@ -153,7 +180,7 @@ public class Hotpatch {
     }
 
     public Object call(String className, String methodName, Object... args) throws IllegalAccessException,
-                                                                                   InvocationTargetException {
+            InvocationTargetException {
 
         if (!this.method.containsKey(className + ":" + methodName))
             throw new IllegalArgumentException("No such method " + methodName + " for class " + className);
@@ -169,7 +196,7 @@ public class Hotpatch {
 
 
     public void reload() throws InstantiationException, IllegalAccessException, ClassNotFoundException,
-                                NoSuchMethodException {
+            NoSuchMethodException {
         this.loadLibrary(jarpath, context);
 
         Set<String> methodNames = method.keySet();
@@ -186,16 +213,13 @@ public class Hotpatch {
 
     }
 
-    public void autoload() {
-        if (this.classLoaded == null)
-            throw new RuntimeException("You must load classes first!");
+    public void autoload() throws IOException,
+                                  ClassNotFoundException,
+                                  IllegalAccessException,
+                                  InstantiationException {
 
-        Set<String> classNames = this.classLoaded.keySet();
-
-        for (String className : classNames) {
-            this.loadMethods(className);
-            this.loadFields(className);
-        }
-
+        this.loadClasses();
+        //load methods
+        //load fields
     }
 }
