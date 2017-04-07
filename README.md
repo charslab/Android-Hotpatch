@@ -89,7 +89,7 @@ and you'll have your updated library loaded into the app. Now, whenever you exec
 
 ## Changelog
 
-- v1.0:
+- v0.1 Alpha:
      - Support for methods
      - Implemented Hotpatch.loadLibrary()
      - Implemented Hotpatch.loadClass()
