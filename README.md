@@ -25,7 +25,7 @@ You might need to do a small refactor of your app's code, but **the advantages a
 Let's say we have a class that we want to use in our Android app, defined this way:
 
 ```JAVA
-package com.chars.testlib.TestLib;
+package com.chars.testlib;
 
 public class TestLib {
      public String getVersionString() {
@@ -34,7 +34,7 @@ public class TestLib {
 }
 ```
 
-After making a .jar library of that class, deploy it to you device i.e in */sdcard/TestLib.jar*
+After making a .jar library of that class, deploy it to your device i.e in your app private storage path (*getFilesDir()*)
 
 In order to use it in your Android app, you must load it with Hotpatch
 
@@ -45,7 +45,7 @@ final String methods[] = {"getVersionString"};
 final Hotpatch hotpatch = new Hotpatch();
 
 try {
-    hotpatch.loadLibrary("/sdcard/TestLib.jar", getApplicationContext());
+    hotpatch.loadLibrary(getFilesDir() + "/TestLib.jar", getApplicationContext());
     hotpatch.loadClass(className);
     hotpatch.loadMethods(className, methods);
 
@@ -79,6 +79,16 @@ Push the updated .jar to the same path as the previous. In your Android app, you
         hotpatch.reload();
         
 and you'll have your updated library loaded into the app. Now, whenever you execute *getVersionString()* you will get *"libversion 2.0"*
+
+## OTA Update
+
+To patch or update your app remotely, you have to setup trusted domains first. This prevents attacks like DNS spoofing.
+While downloading the patch file, Android-Hotpatch will perform certificate pinning, to make sure the patch is being dowloaded from **your** server. 
+
+- Step 1: Obtain your server's certificate publick key
+- Step 2: Add trusted domain name to Android-Hotpatch domains list
+- Step 3: Download and apply patch file
+
 
 ## Compiling an application as a library (Android Studio / Eclipse):
 
