@@ -1,21 +1,3 @@
-package com.chars.android_hotpatch;
-
-import android.content.Context;
-import android.util.Log;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Set;
-
-import dalvik.system.DexClassLoader;
-import dalvik.system.DexFile;
-
 /**
  Created by chars on 04/04/17.
 
@@ -42,8 +24,34 @@ import dalvik.system.DexFile;
  SOFTWARE.
  */
 
+package com.chars.android_hotpatch;
+
+import android.content.Context;
+import android.util.Log;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Set;
+
+import dalvik.system.DexClassLoader;
+import dalvik.system.DexFile;
+import okhttp3.Call;
+import okhttp3.CertificatePinner;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
+
 public class Hotpatch {
     public static final String TAG = "AndroidHotpatch";
+    public static final String VERSION = "android-hotpatch:v1.0.0b";
 
     private Context                         context;
     private String                          jarpath;
@@ -53,6 +61,9 @@ public class Hotpatch {
     private HashMap<String, Field>          fields;
     private HashMap<String, Method>         method;
 
+    private HashMap<String, String>         domains;
+
+
     public void Hotpatch() {
         jarpath = null;
         dexClassLoader = null;
@@ -60,7 +71,6 @@ public class Hotpatch {
         classInstance = null;
         method = null;
         fields = null;
-
     }
 
     public void Hotpatch(String jarpath, Context context) {
@@ -75,9 +85,23 @@ public class Hotpatch {
         if(!jarfile.exists())
             throw new IllegalArgumentException("Could not find library: " + jarpath);
 
+
         this.jarpath = jarpath;
 
         File optimizedLibrarypath = context.getDir("dex", 0);
+
+        File cachedDex = new File(optimizedLibrarypath.getPath() + "/" + jarpath.replace("jar", "dex"));
+        Log.d(TAG, "Checking for cached version in " + optimizedLibrarypath.getAbsolutePath());
+
+        File files[] = optimizedLibrarypath.listFiles();
+        for (int i = 0;i < files.length; i++) {
+            Log.d(TAG, "File: " + files[i].getName());
+
+            if (files[i].getName().equals(jarfile.getName().replace("jar", "dex"))) {
+                Log.d(TAG, "A cached " + files[i].getName() + " exists in " + optimizedLibrarypath.getAbsolutePath() + ". Removing it");
+                files[i].delete();
+            }
+        }
 
         dexClassLoader = new DexClassLoader(jarpath, optimizedLibrarypath.getAbsolutePath(),
                 null, context.getClassLoader());
@@ -86,14 +110,14 @@ public class Hotpatch {
 
     @SuppressWarnings("unchecked")
     public void loadClass(String className) throws ClassNotFoundException,
-            IllegalAccessException,
-            InstantiationException {
+                                                   IllegalAccessException,
+                                                   InstantiationException {
         if (classLoaded == null)
             classLoaded = new HashMap<>();
 
         if (classLoaded.containsKey(className)) {
-            Log.d(TAG, "Class " + className + " is already loaded");
-            return;
+            Log.d(TAG, "Class " + className + " is already loaded. Unloading it");
+            classLoaded.remove(className);
         }
 
         Log.d(TAG, "Loading class " + className);
@@ -165,9 +189,9 @@ public class Hotpatch {
 
         for (String methodName: methods) {
             Log.d(TAG, "Loading method " + className + "." + methodName);
-            Method tmpMethod = classLoaded.get(className).getMethod(methodName, parameterTypes);
-
+            Method tmpMethod = classLoaded.get(className).getMethod(methodName);
             method.put(className + ":" + methodName, tmpMethod);
+            Log.d(TAG, "Done");
         }
     }
 
@@ -231,5 +255,95 @@ public class Hotpatch {
         this.loadClasses();
         //load methods
         //load fields
+    }
+
+
+
+    public static class Callback {
+        public void run() {
+
+        }
+    }
+
+    public void addSecureDomain(String domain, String publicKeySha256) {
+        if (domain.isEmpty())
+            throw new IllegalArgumentException("Domain cannot be empty");
+
+        if (publicKeySha256 == null)
+            throw new IllegalArgumentException("Public key hash cannot be empty");
+
+
+        if (this.domains == null) {
+            this.domains = new HashMap<String, String>();
+        }
+
+        this.domains.put(domain, publicKeySha256);
+    }
+
+    public void downloadHotpatch(final String sourceUrl, final String dest, final Callback downloadedCallback) throws IOException {
+
+        String domain = "";
+        Set d = domains.keySet();
+        for (Object cd : d) {
+            if (sourceUrl.startsWith((String)cd)) {
+                Log.d(TAG, "Found match, domain: " + cd);
+                domain = (String) cd;
+                break;
+            }
+        }
+
+        if (domain.isEmpty())
+            throw new IllegalArgumentException("Unkown domain in " + sourceUrl);
+
+
+
+        String publicKey = domains.get(domain);
+        CertificatePinner certificatePinner = new CertificatePinner.Builder()
+                                                    .add(domain, publicKey)
+                                                    .build();
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                                            .certificatePinner(certificatePinner)
+                                            .build();
+
+        Request request = new Request.Builder().url(sourceUrl).build();
+        Log.d(TAG, "Downloading patch to " + dest);
+
+        okHttpClient.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "Failed to download file: " + Log.getStackTraceString(e));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful())
+                    throw new IOException("Failed to dowload file: " + response);
+
+                File file = new File(dest);
+                if (file.exists())
+                    file.delete();
+
+                FileOutputStream outputStream = new FileOutputStream(dest);
+                DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+
+                try {
+                    dataOutputStream.write(response.body().bytes());
+
+                } catch (NullPointerException e) {
+                    Log.d(TAG, "Cannot write updated binary! " + Log.getStackTraceString(e));
+                    throw new IOException(Log.getStackTraceString(e));
+
+                } finally {
+                    dataOutputStream.close();
+                }
+
+
+
+                if (downloadedCallback != null)
+                    downloadedCallback.run();
+
+            }
+        });
+
     }
 }
