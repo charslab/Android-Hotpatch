@@ -5,7 +5,6 @@
 
 Update or fix an android app on the fly, without having to publish a new APK.
 
-
 ## Usage: 
 
 1. Make a .jar library with your app's classes and methods that you want to be updatable (see [compiling your application as a library](https://github.com/charslab/Android-Hotpatch/blob/master/README.md#compiling-an-application-as-a-library-android-studio--eclipse))
@@ -19,6 +18,13 @@ You might need to do a small refactor of your app's code, but **the advantages a
 - Hotpatch does not need the app to restart
 - Updating an app using Hotpatch **does not require root!**
 
+## Dependencies:
+     
+ okhttp (>= 3.8.1)
+ 
+ Add it to your gradle files:
+ 
+     compile 'com.squareup.okhttp3:okhttp:3.8.1'
 
 ## Quick usage demo:
 
